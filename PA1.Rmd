@@ -1,0 +1,190 @@
+---
+title: "Reproducible Data Week 2"
+author: "Wendy Williams"
+date: "June 22, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day. The scripts for downloading, processing, and analyzing this data can be found below. 
+
+## Downloading and Reading the Data
+
+1. First set your working directory to the appropriate folder. 
+2. Download the subset data file ("activity") into a folder called "Reproducible Research" from the url provided.
+
+```{r}
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+if(!file.exists("./Reproducible Research")) {dir.create("./Reproducible Research")}
+download.file(url, destfile = "./Reproducible Research/repdata%2Fdata%2Factivity.zip")
+```
+
+3. Set your working directory to "Reproducible Research", unzip the file ("activity.zip") and read the data into R using read.csv().
+
+```{r}
+unzip("repdata%2Fdata%2Factivity.zip")
+activity <- read.csv("activity.csv")
+```
+
+## Review the Data
+
+For a quick overview of the data file and guidance for analysis, use str(activity), summary(activity), and head(activity).
+
+```{r activity}
+str(activity)
+```
+```{r activity}
+summary(activity)
+```
+```{r activity}
+head(activity)
+```
+
+## Process/Transform the Data
+
+Convert the time data into a data class format. 
+
+```{r}
+activity$date <- as.Date(activity$date)
+```
+
+# What is the mean total number of steps taken per day?
+
+1. Calculate the total number of steps taken each day, ignoring missing values.
+
+```{r}
+activity_NAremoved <- melt(data = activity, id.vars = "date", measure.vars = "steps", na.rm = TRUE)
+eachday <- dcast(activity_NAremoved, date ~ variable, sum)
+eachday
+```
+
+2. Plot a histogram of the total number of steps taken per day.
+
+```{r}
+hist(eachday$steps, main = "Total Number of Steps Each Day", xlab = "Total Number of Steps in A Day")
+```
+
+3. Calculate and report the mean and median number of steps taken each day, using summary on the data set "eachday".
+
+```{r}
+summary(eachday$steps)
+```
+
+The mean is 10766 and the median is 10765.
+
+# What is the average daily pattern?
+
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and average number of steps taken across all days (y-axis), ignoring missing values.
+
+```{r}
+activity_NA <- melt(data = activity, id.vars = "interval", measure.vars = "steps", na.rm = TRUE)
+eachinterval <- dcast(activity_NA, interval ~ variable, mean)
+plot(eachinterval$interval, eachinterval$steps, type = "l", main = "Time Series Plot of Avg. Number of Steps Taken", , xlab = "interval", ylab = "average number of steps", lwd = 2)
+```
+
+2. Determine the 5-minute interval that, on average, contains the maximum number of steps.
+
+Using data subsetted for the above time interval graph, averaging the number of steps for each interval, identify the interval with the max steps.
+
+```{r}
+h = eachinterval$interval[which(eachinterval$steps == max(eachinterval$steps))]
+h
+```
+
+The interval with the maximum number of steps on average is 'h'.
+
+# Imputing missing values
+
+Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+```{r}
+sum(is.na(activity$steps))
+```
+The total number of missing values is 2304.
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+For days that have no data,replace the NA values with the mean number of steps for the interval.
+
+```{r}
+steps.average <- aggregate(steps ~ interval, data = activity, FUN = mean)
+fillNA <- numeric()
+for (i in 1:nrow(activity)) { obs <- activity[i, ]
+    if (is.na(obs$steps)) {steps <- subset(steps.average, interval == obs$interval)$steps } 
+    else {steps <- obs$steps}
+    fillNA <- c(fillNA, steps) }
+activity.fill <- cbind(activity[ , -1], fillNA)             # Create new dataset with imputed values filled
+activity.fill$fillNA <- round(activity.fill$fillNA, 2); 
+names(activity.fill)[3] <- "steps"
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in. 
+
+```{r}
+sum(is.na(activity.fill$steps))
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+First, recalculate the number of steps per day using the imputed data set
+
+```{r}
+fill.eachday  <- aggregate(activity.fill$steps, by = list(activity.fill$date), FUN = sum)
+colnames(fill.eachday) <- c("date", "steps")
+```
+
+Plot a histogram of daily total number of steps taken, using a bin interval of 1000 steps
+
+```{r}
+library(ggplot2)
+ggplot(fill.eachday, aes(x = steps)) + 
+    geom_histogram(fill = "blue", binwidth = 1000) + 
+    labs(title = "Total Steps Taken per Day", x = "Steps", y = "Number of Days")
+```
+
+Calculate and report the mean and median number of steps taken each day, using summary on the data set "eachday".
+
+```{r}
+summary(fill.eachday$steps)
+```
+
+The resulting mean is 10766 and the median is 10766. Compared with the orginal values determined ignoring missing values (see below), the differences are minimal. 
+
+```{r}
+summary(eachday$steps)
+```
+
+What is the impact of imputing missing data on the estimates of the total daily number of steps? 
+
+The median value has shifted by approximately 1 and the mean value remains unchanged. 
+
+# Are there differences in activity patterns between weekdays and weekends?
+
+1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r}
+days <- weekdays(activity.fill$date)                                         # Extract day of the week
+for(i in 1:length(days)) {                                                   # Reformat as binary 
+        if(days[i] %in% c("Saturday", "Sunday")) days[i] = "Weekend"
+        else days[i] = "Weekday" }
+activity.fill$day <- as.factor(days)                                         # Attach to dataset
+week.means <- aggregate(steps ~ interval + day, data = activity.fill, mean)  # Calculate means
+```
+
+2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+
+```{r}
+ggplot(week.means, aes(x = interval, y = steps)) + geom_line(color = "blue") + 
+        facet_wrap( ~ day, nrow = 2, ncol = 1)   + labs(x = "Interval", y = "Number of steps")
+```        
+        
+According to the plots, weekdays are marked by the highest number of steps per interval followed by relatively low activity (number of steps), presumeably sitting at a desk. Weekends however are marked by more consistent activity (number of steps)    
