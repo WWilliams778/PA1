@@ -37,13 +37,13 @@ activity <- read.csv("activity.csv")
 
 For a quick overview of the data file and guidance for analysis, use str(activity), summary(activity), and head(activity).
 
-```{r activity}
+```{r}
 str(activity)
 ```
-```{r activity}
+```{r}
 summary(activity)
 ```
-```{r activity}
+```{r}
 head(activity)
 ```
 
@@ -60,8 +60,8 @@ activity$date <- as.Date(activity$date)
 1. Calculate the total number of steps taken each day, ignoring missing values.
 
 ```{r}
-activity_NAremoved <- melt(data = activity, id.vars = "date", measure.vars = "steps", na.rm = TRUE)
-eachday <- dcast(activity_NAremoved, date ~ variable, sum)
+eachday <- aggregate(activity$steps, by = list(activity$date), sum, na.rm = TRUE)
+colnames(eachday) <- c("date", "steps")
 eachday
 ```
 
@@ -84,9 +84,12 @@ The mean is 10766 and the median is 10765.
 1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and average number of steps taken across all days (y-axis), ignoring missing values.
 
 ```{r}
-activity_NA <- melt(data = activity, id.vars = "interval", measure.vars = "steps", na.rm = TRUE)
-eachinterval <- dcast(activity_NA, interval ~ variable, mean)
-plot(eachinterval$interval, eachinterval$steps, type = "l", main = "Time Series Plot of Avg. Number of Steps Taken", , xlab = "interval", ylab = "average number of steps", lwd = 2)
+eachinterval = aggregate(activity$steps, by=list(interval = activity$interval), FUN=mean, na.rm = TRUE)
+eachinterval$interval <- round(eachinterval$interval, 0)       
+colnames(eachinterval) <- c("interval", "steps")
+
+plot(eachinterval, type = "l", col = "blue", lwd = 2.5, ylab = "Number of Steps", font.lab = 2,
+     main = "Time Series Plot for Average Daily Activity Pattern", xlab = "Interval" )
 ```
 
 2. Determine the 5-minute interval that, on average, contains the maximum number of steps.
